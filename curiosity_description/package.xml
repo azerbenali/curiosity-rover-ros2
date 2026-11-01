@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>curiosity_description</name>
+  <version>1.0.0</version>
+  <description>NASA Curiosity (MSL) rover description: URDF/xacro, textured DAE visuals, STL collision,
+    inertia, rocker-bogie + differential, corner steering, arm, mast, HGA, sensors, gz sim Harmonic + ros2_control.
+    3D model: Curiosity Rover (MSL) by NASA, NASA 3D Resources.</description>
+  <maintainer email="azerbenali5017@gmail.com">Azer Ben Ali</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>rviz_imu_plugin</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>gz_ros2_control</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>joint_state_broadcaster</exec_depend>
+  <exec_depend>velocity_controllers</exec_depend>
+  <exec_depend>position_controllers</exec_depend>
+  <exec_depend>joint_trajectory_controller</exec_depend>
+  <exec_depend>pcl_ros</exec_depend>
+  <exec_depend>laser_filters</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

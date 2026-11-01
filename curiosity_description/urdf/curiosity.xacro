@@ -1,0 +1,317 @@
+<?xml version="1.0"?>
+<!--
+  Curiosity (MSL) rover - links, joints, inertia and collision.
+
+  Frames follow REP-103 (x forward, y left, z up, metres, radians).
+  q = 0 is the fully deployed rover. Every link frame is parallel to base_link
+  at q = 0, so joint origins are pure translations from the parent joint.
+  Visual: meshes/visual/<link>.dae (textured)   Collision: meshes/collision/<link>.stl
+  Masses add up to the 899 kg flight vehicle; inertias are exact for each
+  link's convex hull at uniform density (centre of mass in the link frame).
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="mesh_dir" value="package://curiosity_description/meshes"/>
+  <xacro:property name="wheel_radius" value="0.2426"/>
+  <xacro:property name="wheel_width" value="0.3947"/>
+
+  <!-- ================================================================ -->
+  <!--  Building blocks                                                 -->
+  <!-- ================================================================ -->
+
+  <!-- inertia: "ixx iyy izz ixy ixz iyz" -->
+  <xacro:macro name="inertial" params="mass com inertia">
+    <xacro:property name="i" value="${inertia.split()}"/>
+    <inertial>
+      <origin xyz="${com}" rpy="0 0 0"/>
+      <mass value="${mass}"/>
+      <inertia ixx="${i[0]}" iyy="${i[1]}" izz="${i[2]}" ixy="${i[3]}" ixz="${i[4]}" iyz="${i[5]}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- rigid part: textured visual + convex-hull collision, both named after the link -->
+  <xacro:macro name="part" params="name mass com inertia">
+    <link name="${name}">
+      <visual><geometry><mesh filename="${mesh_dir}/visual/${name}.dae"/></geometry></visual>
+      <collision><geometry><mesh filename="${mesh_dir}/collision/${name}.stl"/></geometry></collision>
+      <xacro:inertial mass="${mass}" com="${com}" inertia="${inertia}"/>
+    </link>
+  </xacro:macro>
+
+  <!-- wheel: textured visual; collision = sphere (default: one clean contact point under the
+       hub, exact steering/turning in physics engines), cylinder, or the convex-hull mesh -->
+  <xacro:macro name="wheel" params="name mass com inertia collision">
+    <link name="${name}">
+      <visual><geometry><mesh filename="${mesh_dir}/visual/${name}.dae"/></geometry></visual>
+      <collision>
+        <xacro:if value="${collision == 'sphere'}">
+          <geometry><sphere radius="${wheel_radius}"/></geometry>
+        </xacro:if>
+        <xacro:if value="${collision == 'cylinder'}">
+          <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+          <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        </xacro:if>
+        <xacro:if value="${collision == 'mesh'}">
+          <geometry><mesh filename="${mesh_dir}/collision/${name}.stl"/></geometry>
+        </xacro:if>
+      </collision>
+      <xacro:inertial mass="${mass}" com="${com}" inertia="${inertia}"/>
+    </link>
+  </xacro:macro>
+
+  <xacro:macro name="joint" params="name type parent child xyz axis lower:=0 upper:=0 effort velocity">
+    <joint name="${name}" type="${type}">
+      <parent link="${parent}"/>
+      <child link="${child}"/>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <axis xyz="${axis}"/>
+      <xacro:if value="${type == 'continuous'}">
+        <limit effort="${effort}" velocity="${velocity}"/>
+      </xacro:if>
+      <xacro:unless value="${type == 'continuous'}">
+        <limit lower="${lower}" upper="${upper}" effort="${effort}" velocity="${velocity}"/>
+      </xacro:unless>
+      <dynamics damping="0.5" friction="0.1"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="curiosity_body" params="wheel_collision:=sphere differential_coupling:=true">
+
+    <link name="base_footprint"/>
+    <joint name="base_footprint_joint" type="fixed">
+      <parent link="base_footprint"/>
+      <child link="base_link"/>
+      <origin xyz="0 0 0.877654" rpy="0 0 0"/>
+    </joint>
+
+    <!-- ============================================================ -->
+    <!-- Chassis                                                      -->
+    <!-- ============================================================ -->
+    <xacro:part name="base_link" mass="573.5" com="-0.1972 -0.0223 0.222"
+        inertia="119.572 322.918 364.757 -3.67863 40.2716 4.88312"/>
+
+
+    <!-- ============================================================ -->
+    <!-- Suspension: rocker-bogie with differential                   -->
+    <!-- ============================================================ -->
+    <xacro:part name="rocker_left_link" mass="5" com="-0.0003 0.0586 0.0426"
+        inertia="0.0469167 0.0324541 0.0307539 2.09967e-05 1.51454e-07 0.00127928"/>
+    <xacro:part name="rocker_front_left_link" mass="10" com="0.4754 0.1435 -0.0857"
+        inertia="0.120536 0.78581 0.814948 -0.211916 0.13395 0.0392203"/>
+    <xacro:part name="rocker_rear_left_link" mass="10" com="-0.313 -0.0027 -0.1007"
+        inertia="0.0702669 0.592054 0.537307 0.00354021 -0.1661 0.00149913"/>
+    <xacro:part name="bogie_left_link" mass="15" com="-0.0796 -0.0261 -0.085"
+        inertia="0.348624 1.45657 1.31871 0.112305 0.431003 0.0131645"/>
+    <xacro:part name="rocker_right_link" mass="5" com="-0.0002 -0.0616 0.0424"
+        inertia="0.0469053 0.0324018 0.0307965 -2.52928e-05 4.65738e-05 -0.00124395"/>
+    <xacro:part name="rocker_front_right_link" mass="10" com="0.4754 -0.1435 -0.0857"
+        inertia="0.120537 0.78581 0.814948 0.211916 0.13395 -0.0392204"/>
+    <xacro:part name="rocker_rear_right_link" mass="10" com="-0.313 0.0027 -0.1007"
+        inertia="0.0702669 0.592054 0.537308 -0.00354021 -0.166099 -0.00149913"/>
+    <xacro:part name="bogie_right_link" mass="15" com="-0.0796 0.0261 -0.085"
+        inertia="0.348625 1.45657 1.31871 -0.112305 0.431004 -0.0131644"/>
+    <xacro:part name="differential_link" mass="5" com="-0.0271 -0.0003 -0.0256"
+        inertia="0.472475 0.0147764 0.48488 0.00340001 2.88547e-05 0.000225944"/>
+    <xacro:part name="diff_rod_left_link" mass="1" com="-0.1022 -0.032 -0.0079"
+        inertia="0.000596434 0.00933523 0.00907715 -4.18972e-05 0.000394118 -2.78979e-06"/>
+    <xacro:part name="diff_rod_right_link" mass="1" com="-0.1023 0.0318 -0.0071"
+        inertia="0.00060283 0.00933537 0.00907063 2.32919e-05 0.000459022 3.69473e-06"/>
+
+    <!-- passive; drives the differential -->
+    <xacro:joint name="rocker_left_joint" type="revolute" parent="base_link" child="rocker_left_link"
+        xyz="0.249084 0.641 0" axis="0 1 0" lower="-0.4" upper="0.4" effort="2000" velocity="1"/>
+    <!-- stowage hinge, 0 = deployed -->
+    <xacro:joint name="rocker_front_fold_left_joint" type="revolute" parent="rocker_left_link" child="rocker_front_left_link"
+        xyz="-0.002503 0.153907 0.006756" axis="0 0.980785 0.19509" lower="-0.9" upper="0.05" effort="2000" velocity="0.3"/>
+    <!-- stowage hinge, 0 = deployed -->
+    <xacro:joint name="rocker_rear_fold_left_joint" type="revolute" parent="rocker_left_link" child="rocker_rear_left_link"
+        xyz="0 0.153362 0.009493" axis="0 0.980785 0.19509" lower="-0.05" upper="0.95" effort="2000" velocity="0.3"/>
+    <xacro:joint name="bogie_left_joint" type="revolute" parent="rocker_rear_left_link" child="bogie_left_link"
+        xyz="-0.754004 0.192854 -0.241563" axis="0 1 0" lower="-0.8" upper="0.6" effort="2000" velocity="1"/>
+    <!-- differential: right = -left -->
+    <joint name="rocker_right_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="rocker_right_link"/>
+      <origin xyz="0.249084 -0.638 -0.00004" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="-0.4" upper="0.4" effort="2000" velocity="1"/>
+      <dynamics damping="0.5" friction="0.1"/>
+      <xacro:if value="${differential_coupling}">
+        <mimic joint="rocker_left_joint" multiplier="-1" offset="0"/>
+      </xacro:if>
+    </joint>
+    <!-- stowage hinge, 0 = deployed -->
+    <xacro:joint name="rocker_front_fold_right_joint" type="revolute" parent="rocker_right_link" child="rocker_front_right_link"
+        xyz="0 -0.161163 0.009533" axis="0 0.980785 -0.19509" lower="-0.9" upper="0.05" effort="2000" velocity="0.3"/>
+    <!-- stowage hinge, 0 = deployed -->
+    <xacro:joint name="rocker_rear_fold_right_joint" type="revolute" parent="rocker_right_link" child="rocker_rear_right_link"
+        xyz="0 -0.161163 0.009533" axis="0 0.980785 -0.19509" lower="-0.05" upper="0.95" effort="2000" velocity="0.3"/>
+    <xacro:joint name="bogie_right_joint" type="revolute" parent="rocker_rear_right_link" child="bogie_right_link"
+        xyz="-0.754004 -0.192857 -0.241561" axis="0 1 0" lower="-0.8" upper="0.6" effort="2000" velocity="1"/>
+    <!-- deck bar follows the left rocker -->
+    <joint name="differential_joint" type="revolute">
+      <parent link="base_link"/>
+      <child link="differential_link"/>
+      <origin xyz="-0.106916 0.000378 0.299066" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="-0.4" upper="0.4" effort="2000" velocity="1"/>
+      <dynamics damping="0.5" friction="0.1"/>
+      <mimic joint="rocker_left_joint" multiplier="-0.419101" offset="0"/>
+    </joint>
+    <!-- rod slides with the rocker crank -->
+    <joint name="diff_rod_left_joint" type="prismatic">
+      <parent link="base_link"/>
+      <child link="diff_rod_left_link"/>
+      <origin xyz="0.249098 0.671804 0.268539" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-0.12" upper="0.12" effort="2000" velocity="0.5"/>
+      <dynamics damping="0.5" friction="0.1"/>
+      <mimic joint="rocker_left_joint" multiplier="0.268539" offset="0"/>
+    </joint>
+    <joint name="diff_rod_right_joint" type="prismatic">
+      <parent link="base_link"/>
+      <child link="diff_rod_right_link"/>
+      <origin xyz="0.248903 -0.671318 0.267151" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <limit lower="-0.12" upper="0.12" effort="2000" velocity="0.5"/>
+      <dynamics damping="0.5" friction="0.1"/>
+      <mimic joint="rocker_left_joint" multiplier="-0.268539" offset="0"/>
+    </joint>
+
+    <!-- ============================================================ -->
+    <!-- Steering and wheels                                          -->
+    <!-- ============================================================ -->
+    <xacro:part name="steer_front_left_link" mass="8" com="-0.0022 -0.1563 -0.3992"
+        inertia="0.193317 0.0987763 0.125525 -0.00195023 -0.000798712 -0.0274657"/>
+    <xacro:part name="steer_front_right_link" mass="8" com="-0.0022 0.1561 -0.3964"
+        inertia="0.193317 0.0987762 0.125525 0.00195019 -0.000798667 0.0274655"/>
+    <xacro:part name="steer_rear_left_link" mass="8" com="-0.0003 -0.1383 -0.1491"
+        inertia="0.178143 0.103485 0.105154 -0.000287112 0.000221174 -0.0199332"/>
+    <xacro:part name="steer_rear_right_link" mass="8" com="-0.0006 0.1383 -0.1491"
+        inertia="0.178144 0.103484 0.105153 0.000338393 -7.41681e-06 0.0199334"/>
+    <xacro:wheel name="wheel_front_left_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 5.28687e-08 -1.03827e-09 -2.02801e-09" collision="${wheel_collision}"/>
+    <xacro:wheel name="wheel_front_right_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 3.91395e-08 6.62431e-10 3.90527e-09" collision="${wheel_collision}"/>
+    <xacro:wheel name="wheel_middle_left_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 5.16823e-08 -7.01612e-10 -2.5389e-09" collision="${wheel_collision}"/>
+    <xacro:wheel name="wheel_middle_right_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 4.90457e-08 6.93734e-10 1.12758e-09" collision="${wheel_collision}"/>
+    <xacro:wheel name="wheel_rear_left_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 4.4038e-08 -3.72571e-10 -6.52527e-10" collision="${wheel_collision}"/>
+    <xacro:wheel name="wheel_rear_right_link" mass="12" com="0 0 0"
+        inertia="0.316153 0.332583 0.316153 7.17683e-08 7.92219e-10 8.21016e-10" collision="${wheel_collision}"/>
+
+    <xacro:joint name="steer_front_left_joint" type="revolute" parent="rocker_front_left_link" child="steer_front_left_link"
+        xyz="0.881002 0.263096 -0.002167" axis="0 0 1" lower="-1.57" upper="1.57" effort="500" velocity="1"/>
+    <xacro:joint name="steer_front_right_joint" type="revolute" parent="rocker_front_right_link" child="steer_front_right_link"
+        xyz="0.881 -0.262838 -0.004898" axis="0 0 1" lower="-1.57" upper="1.57" effort="500" velocity="1"/>
+    <xacro:joint name="steer_rear_left_joint" type="revolute" parent="bogie_left_link" child="steer_rear_left_link"
+        xyz="-0.623996 0.070483 -0.0006" axis="0 0 1" lower="-1.57" upper="1.57" effort="500" velocity="1"/>
+    <xacro:joint name="steer_rear_right_joint" type="revolute" parent="bogie_right_link" child="steer_rear_right_link"
+        xyz="-0.623997 -0.070481 -0.000603" axis="0 0 1" lower="-1.57" upper="1.57" effort="500" velocity="1"/>
+    <xacro:joint name="wheel_front_left_joint" type="continuous" parent="steer_front_left_link" child="wheel_front_left_link"
+        xyz="0.000089 0.000633 -0.639597" axis="0 1 0" effort="500" velocity="3"/>
+    <xacro:joint name="wheel_front_right_joint" type="continuous" parent="steer_front_right_link" child="wheel_front_right_link"
+        xyz="-0.00009 -0.000891 -0.636866" axis="0 1 0" effort="500" velocity="3"/>
+    <xacro:joint name="wheel_middle_left_joint" type="continuous" parent="bogie_left_link" child="wheel_middle_left_link"
+        xyz="0.451004 0.201636 -0.400009" axis="0 1 0" effort="500" velocity="3"/>
+    <xacro:joint name="wheel_middle_right_joint" type="continuous" parent="bogie_right_link" child="wheel_middle_right_link"
+        xyz="0.451004 -0.201634 -0.400012" axis="0 1 0" effort="500" velocity="3"/>
+    <xacro:joint name="wheel_rear_left_joint" type="continuous" parent="steer_rear_left_link" child="wheel_rear_left_link"
+        xyz="0.001244 0.000487 -0.399489" axis="0 1 0" effort="500" velocity="3"/>
+    <xacro:joint name="wheel_rear_right_joint" type="continuous" parent="steer_rear_right_link" child="wheel_rear_right_link"
+        xyz="-0.001243 -0.000487 -0.399489" axis="0 1 0" effort="500" velocity="3"/>
+
+    <!-- ============================================================ -->
+    <!-- Remote sensing mast                                          -->
+    <!-- ============================================================ -->
+    <xacro:part name="mast_column_link" mass="8" com="0.0068 -0.0213 0.1805"
+        inertia="0.155997 0.167178 0.0525231 -0.00924956 -0.00454186 0.00840738"/>
+    <xacro:part name="mast_azimuth_link" mass="4" com="0 0.0047 0.0625"
+        inertia="0.0285428 0.0265996 0.0229363 -1.60432e-08 1.89958e-07 0.0014148"/>
+    <xacro:part name="mast_head_link" mass="15" com="-0.0033 0.0416 0.1124"
+        inertia="0.495034 0.269291 0.39632 0.00288283 0.012065 0.0497628"/>
+
+    <!-- 1.5708 = folded onto the deck -->
+    <xacro:joint name="mast_deploy_joint" type="revolute" parent="base_link" child="mast_column_link"
+        xyz="0.750593 -0.558212 0.35" axis="-0.83867 -0.544639 0" lower="-0.05" upper="1.5708" effort="200" velocity="0.5"/>
+    <xacro:joint name="mast_azimuth_joint" type="revolute" parent="mast_column_link" child="mast_azimuth_link"
+        xyz="-0.001527 -0.000838 0.474769" axis="0 0 1" lower="-3.14" upper="3.14" effort="100" velocity="1"/>
+    <xacro:joint name="mast_elevation_joint" type="revolute" parent="mast_azimuth_link" child="mast_head_link"
+        xyz="-0.000003 0.020692 0.202123" axis="0 1 0" lower="-1.57" upper="1.57" effort="100" velocity="1"/>
+
+    <!-- ============================================================ -->
+    <!-- High-gain antenna                                            -->
+    <!-- ============================================================ -->
+    <xacro:part name="hga_gimbal_link" mass="5" com="-0.0485 0 0.0585"
+        inertia="0.0212399 0.0349897 0.027524 -7.36454e-06 0.00837725 8.45776e-06"/>
+    <xacro:part name="hga_dish_link" mass="10" com="0.2462 0.0083 0.0081"
+        inertia="0.0432591 0.113924 0.113924 0.000323157 0.000323407 0.0179832"/>
+
+    <xacro:joint name="hga_azimuth_joint" type="revolute" parent="base_link" child="hga_gimbal_link"
+        xyz="-0.42444 0.474965 0.355316" axis="0 0 1" lower="-3.14" upper="3.14" effort="100" velocity="1"/>
+    <xacro:joint name="hga_elevation_joint" type="revolute" parent="hga_gimbal_link" child="hga_dish_link"
+        xyz="-0.086411 -0.000101 0.133184" axis="-1 -0.000001 0.000001" lower="-1.57" upper="1.57" effort="100" velocity="1"/>
+
+    <!-- ============================================================ -->
+    <!-- Robotic arm (5 DOF) and turret                               -->
+    <!-- ============================================================ -->
+    <xacro:part name="arm_shoulder_link" mass="10" com="0.0879 -0.02 -0.1711"
+        inertia="0.106696 0.108075 0.124131 0.00274447 -0.00203086 -0.00124628"/>
+    <xacro:part name="arm_upper_link" mass="20" com="0.5563 -0.0858 0.0072"
+        inertia="0.22391 1.11543 1.26512 -0.163375 0.0176116 0.00636217"/>
+    <xacro:part name="arm_lower_link" mass="18" com="0.0036 -0.0724 0.4724"
+        inertia="1.02582 0.983956 0.113782 0.00322392 0.0184466 -0.0120087"/>
+    <xacro:part name="arm_wrist_link" mass="8" com="-0.1304 0.0498 0.1078"
+        inertia="0.0731296 0.0695344 0.0689247 -0.00187174 -0.00327343 0.00318245"/>
+    <xacro:part name="arm_turret_link" mass="33.9" com="-0.002 0.0227 0.1533"
+        inertia="0.750969 0.659789 1.19693 -0.0329422 0.00847943 -0.00170862"/>
+    <xacro:part name="mahli_cover_link" mass="0.1" com="0.0072 0.0128 0.0004"
+        inertia="2.38363e-05 2.35917e-05 3.42774e-05 -6.68189e-07 -7.807e-06 3.76878e-06"/>
+
+    <!-- azimuth -->
+    <xacro:joint name="arm_joint_1" type="revolute" parent="base_link" child="arm_shoulder_link"
+        xyz="1.147935 0.4515 0.122645" axis="0 0 1" lower="-1.6" upper="1.6" effort="500" velocity="0.5"/>
+    <!-- shoulder -->
+    <xacro:joint name="arm_joint_2" type="revolute" parent="arm_shoulder_link" child="arm_upper_link"
+        xyz="0.1605 -0.003843 -0.165645" axis="0 1 0" lower="-1.6" upper="1.6" effort="500" velocity="0.5"/>
+    <!-- elbow -->
+    <xacro:joint name="arm_joint_3" type="revolute" parent="arm_upper_link" child="arm_lower_link"
+        xyz="0.824777 0.070499 0.000582" axis="0 1 0" lower="-2.8" upper="2.8" effort="300" velocity="0.5"/>
+    <!-- wrist -->
+    <xacro:joint name="arm_joint_4" type="revolute" parent="arm_lower_link" child="arm_wrist_link"
+        xyz="-0.001267 -0.159256 0.782666" axis="0 1 0" lower="-2.8" upper="2.8" effort="200" velocity="0.5"/>
+    <!-- turret -->
+    <xacro:joint name="arm_joint_5" type="revolute" parent="arm_wrist_link" child="arm_turret_link"
+        xyz="-0.101267 0.074298 0.143979" axis="0 0 1" lower="-3.14" upper="3.14" effort="200" velocity="0.5"/>
+    <xacro:joint name="mahli_cover_joint" type="revolute" parent="arm_turret_link" child="mahli_cover_link"
+        xyz="-0.136027 -0.226112 0.16812" axis="0.731237 -0.464894 0.499165" lower="-0.05" upper="4.76" effort="5" velocity="2"/>
+
+    <!-- ============================================================ -->
+    <!-- Covers (open at q = 0)                                       -->
+    <!-- ============================================================ -->
+    <xacro:part name="deck_cover_1_link" mass="0.5" com="0.0306 0.0165 0.0549"
+        inertia="0.000450567 0.000695014 0.000340838 -7.92536e-05 -0.000254673 -0.000105629"/>
+    <xacro:part name="deck_cover_2_link" mass="0.5" com="-0.0151 -0.0162 0.0634"
+        inertia="0.000564207 0.000652013 0.000194699 -4.60855e-05 0.000151451 0.000127784"/>
+    <xacro:part name="deck_cover_3_link" mass="0.5" com="-0.0174 -0.0001 0.051"
+        inertia="0.000422143 0.000378737 0.000144018 1.04805e-05 9.48981e-05 -2.70113e-05"/>
+    <xacro:part name="front_hazcam_cover_link" mass="0.5" com="-0.0158 0.137 -0.0126"
+        inertia="0.00304856 0.000216214 0.00309376 -1.50995e-09 -9.54991e-05 -6.8727e-10"/>
+    <xacro:part name="rear_hazcam_cover_link" mass="0.5" com="0.0117 -0.501 -0.0159"
+        inertia="0.0534499 0.000218488 0.0533856 7.3434e-08 9.37276e-05 -7.53261e-09"/>
+
+    <xacro:joint name="deck_cover_1_joint" type="revolute" parent="base_link" child="deck_cover_1_link"
+        xyz="0.653388 0.212591 0.23845" axis="-1 0 0" lower="-1.62" upper="0.05" effort="20" velocity="1"/>
+    <xacro:joint name="deck_cover_2_joint" type="revolute" parent="base_link" child="deck_cover_2_link"
+        xyz="0.778654 -0.276991 0.240232" axis="-1 0 0" lower="-0.05" upper="1.62" effort="20" velocity="1"/>
+    <xacro:joint name="deck_cover_3_joint" type="revolute" parent="base_link" child="deck_cover_3_link"
+        xyz="0.606487 -0.154599 0.24015" axis="0 1 0" lower="-0.05" upper="1.62" effort="20" velocity="1"/>
+    <xacro:joint name="front_hazcam_cover_joint" type="revolute" parent="base_link" child="front_hazcam_cover_link"
+        xyz="0.941095 -0.090665 -0.186547" axis="0 1 0" lower="-3.2" upper="0.05" effort="20" velocity="2"/>
+    <xacro:joint name="rear_hazcam_cover_joint" type="revolute" parent="base_link" child="rear_hazcam_cover_link"
+        xyz="-1.002474 0.501 -0.12737" axis="0 1 0" lower="-0.05" upper="2.95" effort="20" velocity="2"/>
+
+  </xacro:macro>
+</robot>
