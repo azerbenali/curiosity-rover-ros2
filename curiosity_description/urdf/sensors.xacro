@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<!--
+  Sensor frames + Gazebo (gz sim Harmonic) sensors.
+
+  <name>_link            x = viewing direction, y left, z up  (gz renders along +x)
+  <name>_optical_frame   z forward, x right, y down  (REP-103 optical; images use this frame)
+
+  Positions, directions and fields of view come from the cameras in the source model.
+  Resolutions / rates are simulation choices.
+  The <gazebo> blocks are ignored by RViz, Unity and other URDF consumers.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- camera: frames always; a gz camera sensor when gz:=true -->
+  <xacro:macro name="camera" params="name parent xyz rpy hfov width:=800 height:=800 rate:=10 gz:=true">
+    <link name="${name}_link"/>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}_link"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+    </joint>
+    <link name="${name}_optical_frame"/>
+    <joint name="${name}_optical_joint" type="fixed">
+      <parent link="${name}_link"/>
+      <child link="${name}_optical_frame"/>
+      <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    </joint>
+    <xacro:if value="${gz}">
+      <gazebo reference="${name}_link">
+        <sensor name="${name}" type="camera">
+          <always_on>true</always_on>
+          <update_rate>${rate}</update_rate>
+          <topic>${name}/image_raw</topic>
+          <gz_frame_id>${name}_optical_frame</gz_frame_id>
+          <camera>
+            <camera_info_topic>${name}/camera_info</camera_info_topic>
+            <horizontal_fov>${hfov}</horizontal_fov>
+            <image><width>${width}</width><height>${height}</height><format>R8G8B8</format></image>
+            <clip><near>0.05</near><far>200</far></clip>
+            <noise><type>gaussian</type><mean>0</mean><stddev>0.005</stddev></noise>
+          </camera>
+        </sensor>
+      </gazebo>
+    </xacro:if>
+  </xacro:macro>
+
+  <xacro:macro name="curiosity_sensors" params="use_lidar use_cameras lidar_x lidar_y lidar_z">
+
+    <!-- Navigation cameras: stereo pair on the mast, 0.42 m baseline, 45 deg -->
+    <xacro:camera name="navcam_left"  parent="mast_head_link" xyz="0.128014 0.232899 0.081525"  rpy="0 0 0" hfov="0.7854" gz="${use_cameras}"/>
+    <xacro:camera name="navcam_right" parent="mast_head_link" xyz="0.128016 -0.186413 0.081525" rpy="0 0 0" hfov="0.7854" gz="${use_cameras}"/>
+
+    <!-- Mast cameras: MastCam-34 (left, 15 deg) and MastCam-100 (right, real 5.1 deg;
+         0.1 rad = 5.7 deg is the narrowest field of view SDFormat accepts) -->
+    <xacro:camera name="mastcam_left"  parent="mast_head_link" xyz="0.128752 0.14227 0.065695"   rpy="0 0 0" hfov="0.2618" height="600" rate="5" gz="${use_cameras}"/>
+    <xacro:camera name="mastcam_right" parent="mast_head_link" xyz="0.128752 -0.096604 0.065199" rpy="0 0 0" hfov="0.1"    height="600" rate="5" gz="${use_cameras}"/>
+
+    <!-- Hazard cameras: 120 deg fisheye-class, pitched 45 deg down -->
+    <xacro:camera name="front_hazcam"      parent="base_link" xyz="0.973156 0.086741 -0.163985"   rpy="0 0.785398 0"         hfov="2.0944" gz="${use_cameras}"/>
+    <xacro:camera name="rear_hazcam_left"  parent="base_link" xyz="-1.034375 0.550879 -0.104816"  rpy="0 0.785398 3.141592"  hfov="2.0944" gz="${use_cameras}"/>
+    <xacro:camera name="rear_hazcam_right" parent="base_link" xyz="-1.034375 -0.550879 -0.104817" rpy="0 0.785252 -3.141593" hfov="2.0944" gz="${use_cameras}"/>
+
+    <!-- Descent imager (looks down) and arm hand-lens imager: frames only -->
+    <xacro:camera name="mardi" parent="base_link"       xyz="0.708755 0.647786 -0.200477"  rpy="-0.000001 1.570796 0"     hfov="1.2217" gz="false"/>
+    <xacro:camera name="mahli" parent="arm_turret_link" xyz="-0.123674 -0.224965 0.151332" rpy="0.522943 0 -2.145719" hfov="0.5236" gz="false"/>
+
+    <!-- Depth camera (RGB-D) for perception / obstacle avoidance: not on the real rover.
+         Front of the mast head between the NavCams, pitched 20 deg down; 0.1-20 m range.
+         ROS: depth_camera/image_raw, depth_camera/depth/image_raw (32FC1, metres),
+              depth_camera/camera_info (optical frame), depth_camera/points (320x240) -->
+    <xacro:camera name="depth_camera" parent="mast_head_link" xyz="0.15 0.023 0.03" rpy="0 0.35 0" hfov="1.2" gz="false"/>
+    <gazebo reference="depth_camera_link">
+      <sensor name="depth_camera" type="rgbd_camera">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <topic>depth_camera</topic>
+        <gz_frame_id>depth_camera_optical_frame</gz_frame_id>
+        <camera>
+          <horizontal_fov>1.2</horizontal_fov>
+          <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+          <clip><near>0.1</near><far>20</far></clip>
+          <depth_camera><clip><near>0.1</near><far>20</far></clip></depth_camera>
+        </camera>
+      </sensor>
+      <!-- gz publishes depth point clouds in the x-forward camera frame, so the cloud comes
+           from this second, lighter depth sensor labelled depth_camera_link -->
+      <sensor name="depth_camera_points" type="depth_camera">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <topic>depth_camera_points</topic>
+        <gz_frame_id>depth_camera_link</gz_frame_id>
+        <camera>
+          <horizontal_fov>1.2</horizontal_fov>
+          <image><width>320</width><height>240</height><format>R_FLOAT32</format></image>
+          <clip><near>0.1</near><far>20</far></clip>
+        </camera>
+      </sensor>
+    </gazebo>
+
+    <!-- IMU at base_link -->
+    <link name="imu_link"/>
+    <joint name="imu_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="imu_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+    <gazebo reference="imu_link">
+      <sensor name="imu" type="imu">
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <topic>imu</topic>
+        <gz_frame_id>imu_link</gz_frame_id>
+      </sensor>
+    </gazebo>
+
+    <!-- Optional 3D lidar on a 12 cm post (Curiosity never flew one; for SLAM / mapping).
+         16 beams, +-15 deg, 360 deg, 0.3-40 m, 10 Hz. -->
+    <xacro:if value="${use_lidar}">
+      <link name="lidar_post_link">
+        <visual>
+          <origin xyz="0 0 0.06"/>
+          <geometry><cylinder radius="0.02" length="0.12"/></geometry>
+          <material name="lidar_grey"><color rgba="0.55 0.55 0.58 1"/></material>
+        </visual>
+        <collision>
+          <origin xyz="0 0 0.06"/>
+          <geometry><cylinder radius="0.02" length="0.12"/></geometry>
+        </collision>
+        <inertial>
+          <origin xyz="0 0 0.06"/>
+          <mass value="0.3"/>
+          <inertia ixx="0.0004" iyy="0.0004" izz="0.00006" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+      </link>
+      <joint name="lidar_post_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_post_link"/>
+        <origin xyz="${lidar_x} ${lidar_y} ${lidar_z}" rpy="0 0 0"/>
+      </joint>
+      <link name="lidar_link">
+        <visual>
+          <geometry><cylinder radius="0.0515" length="0.0717"/></geometry>
+          <material name="lidar_black"><color rgba="0.08 0.08 0.08 1"/></material>
+        </visual>
+        <collision><geometry><cylinder radius="0.0515" length="0.0717"/></geometry></collision>
+        <inertial>
+          <mass value="0.83"/>
+          <inertia ixx="0.0009" iyy="0.0009" izz="0.0011" ixy="0" ixz="0" iyz="0"/>
+        </inertial>
+      </link>
+      <joint name="lidar_joint" type="fixed">
+        <parent link="lidar_post_link"/>
+        <child link="lidar_link"/>
+        <origin xyz="0 0 0.15585" rpy="0 0 0"/>
+      </joint>
+      <gazebo reference="lidar_link">
+        <sensor name="lidar" type="gpu_lidar">
+          <always_on>true</always_on>
+          <update_rate>10</update_rate>
+          <topic>lidar</topic>
+          <gz_frame_id>lidar_link</gz_frame_id>
+          <lidar>
+            <scan>
+              <horizontal><samples>900</samples><min_angle>${-pi}</min_angle><max_angle>${pi}</max_angle></horizontal>
+              <vertical><samples>16</samples><min_angle>-0.2618</min_angle><max_angle>0.2618</max_angle></vertical>
+            </scan>
+            <range><min>0.3</min><max>40</max><resolution>0.01</resolution></range>
+            <noise><type>gaussian</type><mean>0</mean><stddev>0.01</stddev></noise>
+          </lidar>
+        </sensor>
+      </gazebo>
+    </xacro:if>
+
+  </xacro:macro>
+</robot>
