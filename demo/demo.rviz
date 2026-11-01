@@ -1,0 +1,154 @@
+Panels: []
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Reference Frame: base_footprint
+      Cell Size: 0.5
+      Plane Cell Count: 20
+      Color: 160; 160; 164
+      Alpha: 0.5
+      Line Style:
+        Value: Lines
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Visual Enabled: true
+      Collision Enabled: false
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Alpha: 1
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+      Update Interval: 0
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Lidar
+      Enabled: true
+      Topic:
+        Value: /lidar/points_filtered
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Style: Points
+      Size (Pixels): 2
+      Color Transformer: AxisColor
+      Axis: Z
+      Decay Time: 0
+    - Class: rviz_default_plugins/Image
+      Name: NavCam left
+      Enabled: false
+      Topic:
+        Value: /navcam_left/image_raw
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+    - Class: rviz_default_plugins/Image
+      Name: Front HazCam
+      Enabled: false
+      Topic:
+        Value: /front_hazcam/image_raw
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+    - Class: rviz_default_plugins/Image
+      Name: MastCam left
+      Enabled: false
+      Topic:
+        Value: /mastcam_left/image_raw
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+    - Class: rviz_default_plugins/Image
+      Name: Depth image
+      Enabled: false
+      Topic:
+        Value: /depth_camera/depth/image_raw
+        Depth: 2
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Normalize Range: false
+      Min Value: 0
+      Max Value: 15
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Depth cloud
+      Enabled: true
+      Topic:
+        Value: /depth_camera/points_filtered
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Style: Points
+      Size (Pixels): 2
+      Color Transformer: AxisColor
+      Axis: Z
+      Decay Time: 0
+    - Class: rviz_imu_plugin/Imu
+      Name: IMU
+      Enabled: true
+      Topic:
+        Value: /imu
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+      Alpha: 0.6
+      Color: 204; 51; 204
+      Length: 0.6
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: false
+      Show Arrows: false
+      Show Axes: true
+      Show Names: true
+      Marker Scale: 0.4
+      Update Interval: 0
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 52
+    Fixed Frame: base_footprint
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Target Frame: base_footprint
+      Distance: 11
+      Focal Point:
+        X: 0.2
+        Y: 0
+        Z: 0.8
+      Pitch: 0.5
+      Yaw: 3.75
+      Near Clip Distance: 0.01
+      Field of View: 0.785
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1400
+  X: 0
+  Y: 0
+  Hide Left Dock: true
+  Hide Right Dock: true
