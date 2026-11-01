@@ -1,0 +1,66 @@
+# ros2_control controllers for Gazebo (loaded by the gz_ros2_control plugin).
+controller_manager:
+  ros__parameters:
+    update_rate: 100
+    use_sim_time: true
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+    wheel_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+    steering_controller:
+      type: position_controllers/JointGroupPositionController
+    articulation_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+gz_ros_control:          # node name used by the gz_ros2_control plugin
+  ros__parameters:
+    position_proportional_gain: 0.1   # x gz update rate (1 kHz): settles a position error within a few ms, no overshoot
+
+# /wheel_velocity_controller/commands  std_msgs/Float64MultiArray  [rad/s] in this order
+wheel_velocity_controller:
+  ros__parameters:
+    joints:
+      - wheel_front_left_joint
+      - wheel_front_right_joint
+      - wheel_middle_left_joint
+      - wheel_middle_right_joint
+      - wheel_rear_left_joint
+      - wheel_rear_right_joint
+
+# /steering_controller/commands  std_msgs/Float64MultiArray  [rad] in this order
+steering_controller:
+  ros__parameters:
+    joints:
+      - steer_front_left_joint
+      - steer_front_right_joint
+      - steer_rear_left_joint
+      - steer_rear_right_joint
+
+# /articulation_controller/joint_trajectory  trajectory_msgs/JointTrajectory (smooth moves)
+articulation_controller:
+  ros__parameters:
+    joints:
+      - mast_deploy_joint
+      - mast_azimuth_joint
+      - mast_elevation_joint
+      - hga_azimuth_joint
+      - hga_elevation_joint
+      - arm_joint_1
+      - arm_joint_2
+      - arm_joint_3
+      - arm_joint_4
+      - arm_joint_5
+      - mahli_cover_joint
+      - deck_cover_1_joint
+      - deck_cover_2_joint
+      - deck_cover_3_joint
+      - front_hazcam_cover_joint
+      - rear_hazcam_cover_joint
+      - rocker_front_fold_left_joint
+      - rocker_front_fold_right_joint
+      - rocker_rear_fold_left_joint
+      - rocker_rear_fold_right_joint
+    command_interfaces: [position]
+    state_interfaces: [position, velocity]
+    allow_partial_joints_goal: true

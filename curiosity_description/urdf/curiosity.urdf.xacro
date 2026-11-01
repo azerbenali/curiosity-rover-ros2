@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!--
+  NASA Curiosity (MSL) rover.
+
+  xacro args
+    use_gazebo                 add ros2_control + gz sim plugins/sensors       (default true)
+    use_lidar                  add the optional lidar on the deck              (default true)
+    use_cameras                Gazebo sensors for NavCam, MastCam, HazCam      (default true)
+                               (false: frames only, much faster without a GPU)
+    lidar_x / lidar_y / lidar_z  lidar post position in base_link
+    wheel_collision            sphere | cylinder | mesh                         (default sphere)
+    differential_coupling      rockers coupled by the differential (real rover) (default true)
+
+  Plain URDF for Unity or other tools:
+    xacro curiosity.urdf.xacro use_gazebo:=false > curiosity.urdf
+-->
+<robot name="curiosity" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="use_gazebo" default="true"/>
+  <xacro:arg name="use_lidar" default="true"/>
+  <xacro:arg name="use_cameras" default="true"/>
+  <xacro:arg name="lidar_x" default="0.755"/>
+  <xacro:arg name="lidar_y" default="0.0"/>
+  <xacro:arg name="lidar_z" default="0.266"/>
+  <xacro:arg name="wheel_collision" default="sphere"/>
+  <xacro:arg name="differential_coupling" default="true"/>
+
+  <xacro:include filename="curiosity.xacro"/>
+  <xacro:include filename="sensors.xacro"/>
+
+  <xacro:curiosity_body wheel_collision="$(arg wheel_collision)"
+                        differential_coupling="$(arg differential_coupling)"/>
+  <xacro:curiosity_sensors use_lidar="$(arg use_lidar)" use_cameras="$(arg use_cameras)"
+                           lidar_x="$(arg lidar_x)" lidar_y="$(arg lidar_y)" lidar_z="$(arg lidar_z)"/>
+
+  <xacro:if value="$(arg use_gazebo)">
+    <xacro:include filename="gazebo.xacro"/>
+    <xacro:curiosity_gazebo controllers="$(find curiosity_description)/config/controllers.yaml"/>
+  </xacro:if>
+</robot>

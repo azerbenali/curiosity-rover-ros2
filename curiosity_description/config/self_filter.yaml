@@ -1,0 +1,50 @@
+# Remove the rover's own body from its sensor data ("self filter").
+# Box in base_footprint (moves and tilts with the rover) around body, wheels, mast and the
+# stowed arm, 5 cm margin. The ground below 4 cm is kept.
+# Raw topics stay available; the filtered ones are what mapping / avoidance should use:
+#   /lidar/points          -> /lidar/points_filtered
+#   /depth_camera/points   -> /depth_camera/points_filtered
+#   /lidar/scan            -> /lidar/scan_filtered
+# The deployed arm reaches x = 2.32 m; widen max_x to 2.37 if you drive with it out.
+
+lidar_self_filter:
+  ros__parameters:
+    use_sim_time: true
+    input_frame: base_footprint
+    output_frame: lidar_link
+    min_x: -1.68
+    max_x: 1.47
+    min_y: -1.45
+    max_y: 1.45
+    min_z: 0.04
+    max_z: 2.27
+    negative: true            # true = remove the points INSIDE the box
+
+depth_self_filter:
+  ros__parameters:
+    use_sim_time: true
+    input_frame: base_footprint
+    output_frame: depth_camera_link
+    min_x: -1.68
+    max_x: 1.47
+    min_y: -1.45
+    max_y: 1.45
+    min_z: 0.04
+    max_z: 2.27
+    negative: true
+
+scan_self_filter:
+  ros__parameters:
+    use_sim_time: true
+    filter1:
+      name: rover_body
+      type: laser_filters/LaserScanBoxFilter
+      params:
+        box_frame: base_footprint
+        min_x: -1.68
+        max_x: 1.47
+        min_y: -1.45
+        max_y: 1.45
+        min_z: 0.04
+        max_z: 2.27
+        invert: false         # false = remove the points INSIDE the box

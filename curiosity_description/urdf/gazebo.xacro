@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<!--
+  Gazebo (gz sim Harmonic) + ros2_control layer. Ignored by RViz / Unity.
+
+  wheels      velocity command   -> wheel_velocity_controller
+  steering    position command   -> steering_controller
+  mast, HGA, arm, covers, rocker fold hinges
+              position command   -> articulation_controller (holds them against gravity)
+  rocker / bogies: passive (state only). Differential bar, right rocker and rods are
+  <mimic> joints of rocker_left_joint, enforced by gz_ros2_control.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="cmd_joint" params="name interface initial:=0">
+    <joint name="${name}">
+      <command_interface name="${interface}"/>
+      <state_interface name="position"><param name="initial_value">${initial}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="state_joint" params="name">
+    <joint name="${name}">
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="curiosity_gazebo" params="controllers">
+
+    <ros2_control name="curiosity" type="system">
+      <hardware><plugin>gz_ros2_control/GazeboSimSystem</plugin></hardware>
+
+      <!-- drive: 6 wheels -->
+      <xacro:cmd_joint name="wheel_front_left_joint" interface="velocity"/>
+      <xacro:cmd_joint name="wheel_front_right_joint" interface="velocity"/>
+      <xacro:cmd_joint name="wheel_middle_left_joint" interface="velocity"/>
+      <xacro:cmd_joint name="wheel_middle_right_joint" interface="velocity"/>
+      <xacro:cmd_joint name="wheel_rear_left_joint" interface="velocity"/>
+      <xacro:cmd_joint name="wheel_rear_right_joint" interface="velocity"/>
+
+      <!-- steering: 4 corner wheels -->
+      <xacro:cmd_joint name="steer_front_left_joint" interface="position"/>
+      <xacro:cmd_joint name="steer_front_right_joint" interface="position"/>
+      <xacro:cmd_joint name="steer_rear_left_joint" interface="position"/>
+      <xacro:cmd_joint name="steer_rear_right_joint" interface="position"/>
+
+      <!-- articulated parts (the arm starts stowed, out of the cameras' and lidar's view) -->
+      <xacro:cmd_joint name="mast_deploy_joint" interface="position"/>
+      <xacro:cmd_joint name="mast_azimuth_joint" interface="position"/>
+      <xacro:cmd_joint name="mast_elevation_joint" interface="position"/>
+      <xacro:cmd_joint name="hga_azimuth_joint" interface="position"/>
+      <xacro:cmd_joint name="hga_elevation_joint" interface="position"/>
+      <xacro:cmd_joint name="arm_joint_1" interface="position" initial="-1.571"/>
+      <xacro:cmd_joint name="arm_joint_2" interface="position" initial="-0.262"/>
+      <xacro:cmd_joint name="arm_joint_3" interface="position" initial="-1.222"/>
+      <xacro:cmd_joint name="arm_joint_4" interface="position" initial="1.484"/>
+      <xacro:cmd_joint name="arm_joint_5" interface="position" initial="-0.559"/>
+      <xacro:cmd_joint name="mahli_cover_joint" interface="position"/>
+      <xacro:cmd_joint name="deck_cover_1_joint" interface="position"/>
+      <xacro:cmd_joint name="deck_cover_2_joint" interface="position"/>
+      <xacro:cmd_joint name="deck_cover_3_joint" interface="position"/>
+      <xacro:cmd_joint name="front_hazcam_cover_joint" interface="position"/>
+      <xacro:cmd_joint name="rear_hazcam_cover_joint" interface="position"/>
+      <xacro:cmd_joint name="rocker_front_fold_left_joint" interface="position"/>
+      <xacro:cmd_joint name="rocker_front_fold_right_joint" interface="position"/>
+      <xacro:cmd_joint name="rocker_rear_fold_left_joint" interface="position"/>
+      <xacro:cmd_joint name="rocker_rear_fold_right_joint" interface="position"/>
+
+      <!-- passive suspension -->
+      <xacro:state_joint name="rocker_left_joint"/>
+      <xacro:state_joint name="bogie_left_joint"/>
+      <xacro:state_joint name="bogie_right_joint"/>
+      <xacro:state_joint name="rocker_right_joint"/>
+      <xacro:state_joint name="differential_joint"/>
+      <xacro:state_joint name="diff_rod_left_joint"/>
+      <xacro:state_joint name="diff_rod_right_joint"/>
+    </ros2_control>
+
+    <gazebo>
+      <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <parameters>${controllers}</parameters>
+      </plugin>
+    </gazebo>
+
+    <!-- ground-truth pose for evaluating odometry / SLAM: /odom/ground_truth (no TF) -->
+    <gazebo>
+      <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+        <odom_frame>odom</odom_frame>
+        <robot_base_frame>base_footprint</robot_base_frame>
+        <odom_topic>odom/ground_truth</odom_topic>
+        <odom_publish_frequency>50</odom_publish_frequency>
+        <dimensions>3</dimensions>
+      </plugin>
+    </gazebo>
+
+    <!-- wheel / ground contact (Mars regolith-like grip) -->
+    <gazebo reference="wheel_front_left_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+    <gazebo reference="wheel_front_right_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+    <gazebo reference="wheel_middle_left_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+    <gazebo reference="wheel_middle_right_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+    <gazebo reference="wheel_rear_left_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+    <gazebo reference="wheel_rear_right_link"><mu1>0.9</mu1><mu2>0.9</mu2></gazebo>
+
+  </xacro:macro>
+</robot>
