@@ -1,0 +1,63 @@
+# Curiosity rover in Docker (macOS, Windows, Linux).
+#
+#   docker compose build
+#   docker compose up demo          four panels: RViz, Gazebo, RGB and depth camera
+#   docker compose up gazebo        Gazebo on Mars with every sensor, plus RViz
+#   docker compose up rviz          RViz with a slider per joint
+#   docker compose run --rm shell   bash with ROS 2 sourced
+#   docker compose run --rm test    headless acceptance test
+#
+# Open http://localhost:6080. Run one GUI service at a time (they share the port).
+
+x-rover: &rover
+  build: .
+  image: curiosity_rover:jazzy
+  init: true
+  shm_size: 1gb
+  ports:
+    - "6080:6080"
+  environment:
+    - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+    - RESOLUTION=${RESOLUTION:-1920x1080}
+  volumes:
+    # edit on the host, restart the service: no rebuild needed
+    - ./curiosity_description:/ws/src/curiosity_description
+    - ./tests:/ws/tests
+    - ./demo:/ws/demo
+    - ./examples:/ws/examples
+    - ./output:/ws/output
+
+services:
+  gazebo:
+    <<: *rover
+    command: ros2 launch curiosity_description gazebo.launch.xml
+
+  gazebo-flat:
+    <<: *rover
+    command: >
+      bash -c "ros2 launch curiosity_description gazebo.launch.xml
+               world:=/ws/install/curiosity_description/share/curiosity_description/worlds/flat.sdf"
+
+  demo:
+    <<: *rover
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RESOLUTION=${DEMO_RESOLUTION:-1920x1440}
+    command: bash /ws/demo/run_demo.sh
+
+  rviz:
+    <<: *rover
+    command: ros2 launch curiosity_description display.launch.xml
+
+  shell:
+    <<: *rover
+    stdin_open: true
+    tty: true
+    command: bash
+
+  test:
+    <<: *rover
+    ports: []
+    environment:
+      - HEADLESS=1
+    command: python3 /ws/tests/test_gazebo.py /ws/output

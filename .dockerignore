@@ -1,0 +1,9 @@
+**/*.blend
+**/*.blend1
+build/
+install/
+log/
+output/
+docs/
+.git/
+.vscode/

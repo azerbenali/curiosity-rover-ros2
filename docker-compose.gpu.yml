@@ -1,0 +1,39 @@
+# Linux only: show the windows on your own X desktop and use the host GPU.
+#
+#   xhost +local:docker
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up gazebo
+#
+# Intel / AMD GPUs work through /dev/dri. For NVIDIA, install the NVIDIA Container
+# Toolkit and uncomment the `deploy` block.
+
+x-gpu: &gpu
+  environment:
+    - DISPLAY=${DISPLAY}
+    - LIBGL_ALWAYS_SOFTWARE=0
+    - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+    # - NVIDIA_DRIVER_CAPABILITIES=all
+  volumes:
+    - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    - ./curiosity_description:/ws/src/curiosity_description
+    - ./tests:/ws/tests
+    - ./demo:/ws/demo
+    - ./examples:/ws/examples
+    - ./output:/ws/output
+  devices:
+    - /dev/dri:/dev/dri
+  network_mode: host
+  ports: !reset []
+  # deploy:
+  #   resources:
+  #     reservations:
+  #       devices:
+  #         - driver: nvidia
+  #           count: all
+  #           capabilities: [gpu]
+
+services:
+  gazebo: *gpu
+  gazebo-flat: *gpu
+  demo: *gpu
+  rviz: *gpu
+  shell: *gpu
