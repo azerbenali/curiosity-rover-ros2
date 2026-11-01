@@ -1,0 +1,14 @@
+<!--
+  View the description in RViz and move every joint with sliders.
+    ros2 launch curiosity_description display.launch.xml
+-->
+<launch>
+  <arg name="use_lidar" default="true"/>
+
+  <node pkg="robot_state_publisher" exec="robot_state_publisher">
+    <param name="robot_description" type="str"
+           value="$(command 'xacro $(find-pkg-share curiosity_description)/urdf/curiosity.urdf.xacro use_gazebo:=false use_lidar:=$(var use_lidar)')"/>
+  </node>
+  <node pkg="joint_state_publisher_gui" exec="joint_state_publisher_gui"/>
+  <node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share curiosity_description)/rviz/display.rviz"/>
+</launch>

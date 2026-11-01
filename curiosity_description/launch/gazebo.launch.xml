@@ -1,0 +1,63 @@
+<!--
+  Spawn the rover in gz sim (Harmonic) with ros2_control and the sensor bridge.
+    ros2 launch curiosity_description gazebo.launch.xml
+    headless: gz_args:="-r -s (double-dash)headless-rendering" rviz:=false
+-->
+<launch>
+  <!-- mars.sdf: terrain, rocks, sky (default)   flat.sdf: flat ground for precise tests -->
+  <arg name="world" default="$(find-pkg-share curiosity_description)/worlds/mars.sdf"/>
+  <arg name="gz_args" default="-r"/>
+  <arg name="use_lidar" default="true"/>
+  <!-- false: no NavCam / MastCam / HazCam images (frames stay), much faster without a GPU -->
+  <arg name="use_cameras" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="self_filter" default="true"/>
+
+  <!-- lets gz resolve package://curiosity_description/meshes/... -->
+  <set_env name="GZ_SIM_RESOURCE_PATH" value="$(find-pkg-share curiosity_description)/..:$(env GZ_SIM_RESOURCE_PATH '')"/>
+
+  <include file="$(find-pkg-share ros_gz_sim)/launch/gz_sim.launch.py">
+    <arg name="gz_args" value="$(var gz_args) $(var world)"/>
+  </include>
+
+  <node pkg="robot_state_publisher" exec="robot_state_publisher">
+    <param name="use_sim_time" value="true"/>
+    <param name="robot_description" type="str"
+           value="$(command 'xacro $(find-pkg-share curiosity_description)/urdf/curiosity.urdf.xacro use_lidar:=$(var use_lidar) use_cameras:=$(var use_cameras)')"/>
+  </node>
+
+  <node pkg="ros_gz_sim" exec="create" args="-topic robot_description -name curiosity -z 0.02"/>
+
+  <node pkg="ros_gz_bridge" exec="parameter_bridge">
+    <param name="config_file" value="$(find-pkg-share curiosity_description)/config/gz_bridge.yaml"/>
+    <param name="use_sim_time" value="true"/>
+  </node>
+
+  <!-- generous timeouts: Gazebo can run well below real time on laptops without a GPU -->
+  <node pkg="controller_manager" exec="spawner"
+        args="joint_state_broadcaster wheel_velocity_controller steering_controller articulation_controller
+              --controller-manager-timeout 120 --switch-timeout 60 --service-call-timeout 60"/>
+
+  <!-- remove the rover's own body from lidar and depth data (config/self_filter.yaml) -->
+  <group if="$(var self_filter)">
+    <node pkg="pcl_ros" exec="filter_crop_box_node" name="lidar_self_filter">
+      <param from="$(find-pkg-share curiosity_description)/config/self_filter.yaml"/>
+      <remap from="input" to="lidar/points"/>
+      <remap from="output" to="lidar/points_filtered"/>
+    </node>
+    <node pkg="pcl_ros" exec="filter_crop_box_node" name="depth_self_filter">
+      <param from="$(find-pkg-share curiosity_description)/config/self_filter.yaml"/>
+      <remap from="input" to="depth_camera/points"/>
+      <remap from="output" to="depth_camera/points_filtered"/>
+    </node>
+    <node pkg="laser_filters" exec="scan_to_scan_filter_chain" name="scan_self_filter">
+      <param from="$(find-pkg-share curiosity_description)/config/self_filter.yaml"/>
+      <remap from="scan" to="lidar/scan"/>
+      <remap from="scan_filtered" to="lidar/scan_filtered"/>
+    </node>
+  </group>
+
+  <node pkg="rviz2" exec="rviz2" if="$(var rviz)" args="-d $(find-pkg-share curiosity_description)/rviz/display.rviz">
+    <param name="use_sim_time" value="true"/>
+  </node>
+</launch>
