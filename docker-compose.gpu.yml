@@ -9,6 +9,7 @@
 x-gpu: &gpu
   environment:
     - DISPLAY=${DISPLAY}
+    - HEADLESS=1
     - LIBGL_ALWAYS_SOFTWARE=0
     - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     # - NVIDIA_DRIVER_CAPABILITIES=all
