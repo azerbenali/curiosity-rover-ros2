@@ -14,8 +14,8 @@ x-rover: &rover
   image: curiosity_rover:jazzy
   init: true
   shm_size: 1gb
-    ports:
-    - "127.0.0.1:6080:6080"
+  ports:
+  - "127.0.0.1:6080:6080"
   environment:
     - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
     - RESOLUTION=${RESOLUTION:-1920x1080}
